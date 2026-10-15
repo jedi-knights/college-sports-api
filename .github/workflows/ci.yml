@@ -80,3 +80,24 @@ jobs:
 
       - name: Lint OpenAPI spec
         run: npx --yes @redocly/cli@latest lint api/openapi/openapi.yaml
+
+  # Aggregator job required by the repo's `required_status_checks`
+  # ruleset. Branch protection names this exact check context (`CI`)
+  # so we add/remove the real jobs above without having to update the
+  # ruleset. Fails when any dependency failed, is skipped, or was
+  # cancelled.
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, openapi]
+    if: always()
+    steps:
+      - name: Confirm all required jobs succeeded
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        run: |
+          echo "One or more required jobs did not succeed:"
+          echo "  lint=${{ needs.lint.result }}"
+          echo "  test=${{ needs.test.result }}"
+          echo "  build=${{ needs.build.result }}"
+          echo "  openapi=${{ needs.openapi.result }}"
+          exit 1
