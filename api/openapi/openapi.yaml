@@ -25,6 +25,11 @@ servers:
   - url: https://jk-college-sports-api.fly.dev
     description: Fly.io production
 
+# No authentication required — this API serves public NCAA data.
+# The empty array satisfies redocly's `security-defined` rule without
+# forcing a securityScheme stanza we don't need.
+security: []
+
 tags:
   - name: scoreboard
     description: Daily game lists.
