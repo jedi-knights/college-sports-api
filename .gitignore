@@ -1,0 +1,25 @@
+# Binaries
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Coverage
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Secrets / local env
+.env
+.env.local
+
+# Fly
+fly.local.toml

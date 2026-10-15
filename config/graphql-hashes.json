@@ -1,0 +1,4 @@
+{
+  "note": "Seed file for NCAA GraphQL persisted-query hashes. Phase 2 of the plan adds `graphql_discovery.go` that refreshes this at startup and on a 6h timer from NCAA.com's Next.js build chunks. Phase 1 uses the ncaa-api.henrygd.me proxy and does not consult this file at runtime.",
+  "operations": {}
+}

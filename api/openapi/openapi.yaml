@@ -1,0 +1,256 @@
+openapi: 3.1.0
+info:
+  title: College Sports API
+  version: 0.1.0
+  summary: Fast, open NCAA scoreboard, schedule, and RPI data derived from NCAA.com.
+  description: |
+    A Go reimplementation of the community `ncaa-api.henrygd.me` surface
+    that adds per-team schedules, computed RPI, DI-only filtering,
+    exhibition exclusion, and reliability improvements through
+    GraphQL-hash self-healing.
+
+    Phase 1 covers daily scoreboards for men's and women's D1/D2/D3
+    soccer. Additional endpoints (team schedules, standings, RPI) land
+    in later phases per the project roadmap in README.md.
+  license:
+    name: MIT
+    url: https://opensource.org/license/mit
+  contact:
+    name: Omar Crosby
+    url: https://github.com/jedi-knights/college-sports-api
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://jk-college-sports-api.fly.dev
+    description: Fly.io production
+
+tags:
+  - name: scoreboard
+    description: Daily game lists.
+  - name: ops
+    description: Health, readiness, metrics, and the OpenAPI document.
+
+paths:
+  /v1/scoreboard/{sport}/{division}/{year}/{month}/{day}:
+    get:
+      operationId: getScoreboard
+      summary: Daily scoreboard for one sport-division pair
+      tags: [scoreboard]
+      parameters:
+        - $ref: '#/components/parameters/Sport'
+        - $ref: '#/components/parameters/Division'
+        - $ref: '#/components/parameters/Year'
+        - $ref: '#/components/parameters/Month'
+        - $ref: '#/components/parameters/Day'
+      responses:
+        '200':
+          description: The scoreboard for that date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scoreboard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+
+  /healthz:
+    get:
+      operationId: liveness
+      summary: Liveness probe
+      tags: [ops]
+      responses:
+        '200':
+          description: Service is live.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /readyz:
+    get:
+      operationId: readiness
+      summary: Readiness probe (checks cache reachability)
+      tags: [ops]
+      responses:
+        '200':
+          description: Service is ready to serve traffic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: A dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /metrics:
+    get:
+      operationId: metrics
+      summary: Prometheus metrics
+      tags: [ops]
+      responses:
+        '200':
+          description: Prometheus exposition format.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /openapi.yaml:
+    get:
+      operationId: openapi
+      summary: This OpenAPI document
+      tags: [ops]
+      responses:
+        '200':
+          description: OpenAPI 3.1 YAML.
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+components:
+  parameters:
+    Sport:
+      name: sport
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [soccer-men, soccer-women]
+      description: Sport identifier (adds more as sports are registered).
+    Division:
+      name: division
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [d1, d2, d3]
+    Year:
+      name: year
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1900
+        maximum: 2100
+    Month:
+      name: month
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 12
+    Day:
+      name: day
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 31
+
+  schemas:
+    Scoreboard:
+      type: object
+      required: [sport, division, date, count, games]
+      properties:
+        sport:
+          type: string
+        division:
+          type: string
+        date:
+          type: string
+          format: date
+        count:
+          type: integer
+        games:
+          type: array
+          items:
+            $ref: '#/components/schemas/Game'
+
+    Game:
+      type: object
+      required: [id, date, state, home, away]
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: date-time
+        state:
+          type: string
+          enum: [scheduled, live, final, postponed, canceled]
+        neutral:
+          type: boolean
+        is_exhibition:
+          type: boolean
+        home:
+          $ref: '#/components/schemas/Team'
+        away:
+          $ref: '#/components/schemas/Team'
+
+    Team:
+      type: object
+      required: [seo, short, score]
+      properties:
+        seo:
+          type: string
+          description: NCAA.com's URL-safe team slug (primary key).
+        short:
+          type: string
+        rank:
+          type: string
+          description: AP/Coaches rank at kickoff. May include a 'T' prefix for ties.
+        score:
+          type: integer
+        winner:
+          type: boolean
+        conference:
+          type: string
+
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+
+  responses:
+    BadRequest:
+      description: One of the path parameters failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Unknown sport, route, or resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unavailable:
+      description: Upstream (NCAA) or cache dependency failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

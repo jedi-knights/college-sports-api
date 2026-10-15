@@ -1,0 +1,45 @@
+# Local-development stack: the API + a Redis cache.
+#
+#   task dev        # starts both; the API serves on http://localhost:8080
+#   task dev-down   # stops and removes volumes
+#
+# The API image is built from the Dockerfile in this directory. Redis uses
+# the official image under its RSALv2/SSPL license, which permits
+# self-hosted development use at no cost.
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        VERSION: dev
+    ports:
+      - "8080:8080"
+    environment:
+      CSA_SERVER_PORT: "8080"
+      CSA_LOG_LEVEL: debug
+      CSA_LOG_FORMAT: text
+      CSA_CACHE_BACKEND: redis
+      CSA_REDIS_URL: redis://redis:6379
+      CSA_OUTBOUND_RATE_LIMIT: "3"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/college-sports-api", "healthcheck"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 5

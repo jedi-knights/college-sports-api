@@ -1,0 +1,49 @@
+# Fly.io deployment configuration for college-sports-api.
+# See README "Deployment (Fly.io)" for the full workflow.
+
+app            = "jk-college-sports-api"  # globally unique; use the jk-* prefix
+primary_region = "ord"                    # east-central, close to NCAA infra
+
+# Fly sends kill_signal then SIGKILLs after kill_timeout. We need enough time
+# for in-flight requests to drain (go-platform/httpserver's default is 30s).
+kill_signal  = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "deploy/Dockerfile"
+  [build.args]
+    VERSION = "fly"
+
+[env]
+  CSA_SERVER_PORT        = "8080"
+  CSA_LOG_FORMAT         = "json"
+  CSA_LOG_LEVEL          = "info"
+  CSA_CACHE_BACKEND      = "redis"
+  # CSA_REDIS_URL set via `fly secrets set CSA_REDIS_URL=...` from
+  # `fly redis status`'s connection string.
+  CSA_OUTBOUND_RATE_LIMIT = "3"
+
+[http_service]
+  internal_port        = 8080
+  force_https          = true
+  # Auto-stop machines when idle to minimize cost on the free tier.
+  # Public API traffic is unpredictable but light; cold starts (~1s)
+  # are acceptable for a scoreboard proxy.
+  auto_stop_machines   = "stop"
+  auto_start_machines  = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    path         = "/readyz"
+    method       = "GET"
+    interval     = "15s"
+    timeout      = "3s"
+    grace_period = "10s"
+
+[metrics]
+  port = 8080
+  path = "/metrics"
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "256mb"

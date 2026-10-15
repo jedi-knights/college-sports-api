@@ -1,0 +1,41 @@
+# college-sports-api — example configuration.
+#
+# All keys here can be overridden by environment variables with the
+# `CSA_` prefix and dot→underscore substitution. For example:
+#
+#   server.port         -> CSA_SERVER_PORT
+#   cache.redis_url     -> CSA_REDIS_URL
+#   outbound.rate_limit -> CSA_OUTBOUND_RATE_LIMIT
+#
+# Precedence: defaults → this file → env vars (env wins).
+
+server:
+  # Port the HTTP server listens on. Match the Dockerfile EXPOSE value.
+  port: 8080
+
+log:
+  # debug | info | warn | error
+  level: info
+  # json for production (one line per record, Grafana-friendly) or
+  # text for local development.
+  format: json
+
+cache:
+  # redis | memory. Memory is in-process (dev only); redis is the
+  # production path and the shared store for Fly's multi-instance
+  # deploys.
+  backend: redis
+  # redis://[:password@]host:port[/db]. Set via `fly secrets` in
+  # production. Leave empty when backend=memory.
+  redis_url: redis://localhost:6379
+
+scraper:
+  # Override the NCAA upstream base URL. Empty uses the built-in
+  # default. Useful for pointing at a staging mirror or test server.
+  base_url: ""
+
+outbound:
+  # Commands per second allowed toward NCAA upstreams. Matches
+  # henrygd's observed limit (3/s) — pushing beyond this risks
+  # getting banned from NCAA's edge.
+  rate_limit: 3.0
