@@ -33,7 +33,7 @@ func NewRouter(d Deps) http.Handler {
 	scoreboard := &scoreboardHandler{registry: d.Registry, cache: d.Cache}
 	mux.Handle("GET /v1/scoreboard/{sport}/{division}/{year}/{month}/{day}", scoreboard)
 
-	health := &healthHandler{cache: d.Cache}
+	health := &healthHandler{cache: d.Cache, logger: d.Logger}
 	mux.HandleFunc("GET /healthz", health.live)
 	mux.HandleFunc("GET /readyz", health.ready)
 
