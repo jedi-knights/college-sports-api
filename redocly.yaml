@@ -1,0 +1,24 @@
+# Redocly CLI configuration for `task openapi-check` and the CI job.
+#
+# We follow the "recommended" ruleset with two targeted downgrades:
+#
+# * operation-4xx-response: off. The /metrics, /openapi.yaml, /healthz,
+#   and /readyz endpoints have no 4xx-worthy failure modes that are
+#   worth modelling in the public spec. (/readyz already declares a
+#   503 for cache failure.) Enforcing the rule globally would require
+#   every operation to declare a boilerplate 400 that the server never
+#   actually returns.
+#
+# * no-ambiguous-paths: off. Catches templated vs literal path overlaps.
+#   We only have templated paths today; re-enable if we ever add a
+#   literal /v1/scoreboard/foo that overlaps with the templated form.
+
+extends:
+  - recommended
+
+rules:
+  operation-4xx-response: off
+  no-ambiguous-paths: off
+  # no-server-example.com flags "localhost" alongside example.com; the
+  # localhost entry is the correct dev URL and should stay in the spec.
+  no-server-example.com: off
