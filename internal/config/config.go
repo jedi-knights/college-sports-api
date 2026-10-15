@@ -66,11 +66,36 @@ func Load(path string) (Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
+	// Explicit short-form aliases for env vars we document in the
+	// README. Without these, `cache.redis_url` would only match
+	// `CSA_CACHE_REDIS_URL` under AutomaticEnv — and Fly secrets like
+	// `CSA_REDIS_URL` (the shape every doc, docker-compose, and
+	// deploy guide uses) would silently fall through to the default
+	// `redis://localhost:6379`.
+	//
+	// First env var wins per BindEnv; the long form stays supported
+	// so a strictly-namespaced deployment is still valid.
+	for key, envs := range envAliases {
+		// BindEnv signature: name, env vars... — any of these resolve to key.
+		if err := v.BindEnv(append([]string{key}, envs...)...); err != nil {
+			return Config{}, fmt.Errorf("config: bind %s: %w", key, err)
+		}
+	}
+
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, fmt.Errorf("config: unmarshal: %w", err)
 	}
 	return cfg, nil
+}
+
+// envAliases maps config keys to the env var names we accept, in
+// precedence order (first non-empty wins). Keep in sync with the
+// README's configuration table.
+var envAliases = map[string][]string{
+	"cache.redis_url":     {"CSA_CACHE_REDIS_URL", "CSA_REDIS_URL"},
+	"outbound.rate_limit": {"CSA_OUTBOUND_RATE_LIMIT"},
+	"scraper.base_url":    {"CSA_SCRAPER_BASE_URL"},
 }
 
 func setDefaults(v *viper.Viper) {
