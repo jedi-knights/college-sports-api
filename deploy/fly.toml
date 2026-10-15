@@ -10,7 +10,10 @@ kill_signal  = "SIGTERM"
 kill_timeout = "30s"
 
 [build]
-  dockerfile = "deploy/Dockerfile"
+  # dockerfile path is passed via the CLI (`--dockerfile deploy/Dockerfile`)
+  # from both the Taskfile and the deploy workflow. Setting it here too
+  # would double-prefix: flyctl resolves `[build].dockerfile` relative to
+  # fly.toml's directory, so "deploy/Dockerfile" becomes "deploy/deploy/…".
   [build.args]
     VERSION = "fly"
 
